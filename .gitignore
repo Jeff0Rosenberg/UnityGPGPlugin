@@ -18,3 +18,4 @@ ProjectSettings
 *.log
 AndroidProject
 bin
+GPGPlugin/.metadata/

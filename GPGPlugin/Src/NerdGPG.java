@@ -32,6 +32,10 @@ import com.google.android.gms.games.achievement.Achievement;
 import com.google.android.gms.games.achievement.AchievementBuffer;
 import com.google.android.gms.games.achievement.OnAchievementUpdatedListener;
 import com.google.android.gms.games.achievement.OnAchievementsLoadedListener;
+import com.google.android.gms.games.leaderboard.OnLeaderboardScoresLoadedListener;
+import com.google.android.gms.games.leaderboard.LeaderboardBuffer;
+import com.google.android.gms.games.leaderboard.LeaderboardVariant;
+import com.google.android.gms.games.leaderboard.LeaderboardScoreBuffer;
 import com.google.android.gms.games.leaderboard.OnScoreSubmittedListener;
 import com.google.android.gms.games.leaderboard.SubmitScoreResult;
 import com.google.android.gms.games.multiplayer.Invitation;
@@ -43,7 +47,7 @@ import com.unity3d.player.UnityPlayer;
 public class NerdGPG implements GooglePlayServicesClient.ConnectionCallbacks,
 GooglePlayServicesClient.OnConnectionFailedListener, OnSignOutCompleteListener, OnStateLoadedListener, OnAchievementUpdatedListener {
 
-	private static String TAG = "NerdGPG";
+	private static String TAG = "Unity";
 	
 	public static String gameObjectName  = null;
 	public static Activity mParentActivity = null;
@@ -276,6 +280,52 @@ GooglePlayServicesClient.OnConnectionFailedListener, OnSignOutCompleteListener, 
 					
 				UnitySendMessageSafe("OnGPGUnlockAchievementResult", ((i==com.google.android.gms.games.GamesClient.STATUS_OK) ? "true" : "false"));
     }
+	
+	public void loadPlayerScore(String leaderboardID, boolean bForceReload) {
+		if(!mSignedIn)
+			UnitySendMessageSafe("OnPlayerScoreLoadFailed", "Not logged in");
+		else
+		{
+			debugLog("Loading Player Score");
+			mGamesClient.loadPlayerCenteredScores(new OnLeaderboardScoresLoadedListener()
+			{
+				@Override
+				public void onLeaderboardScoresLoaded(int arg0, LeaderboardBuffer arg1, LeaderboardScoreBuffer arg2) 
+				{
+					debugLog("Loaded Scores with arg " + arg0 + ", leaderboard count " + arg1.getCount() + " score count " + arg2.getCount());
+					if(arg0 == com.google.android.gms.games.GamesClient.STATUS_OK)
+					{						
+						UnitySendMessageSafe("OnPlayerScoreLoad", String.valueOf(arg2.get(0).getRawScore()));
+					} else {
+						String result = null;
+						
+						switch(arg0) {
+							case com.google.android.gms.games.GamesClient.STATUS_NETWORK_ERROR_STALE_DATA:
+								result = "STATUS_NETWORK_ERROR_STALE_DATA";
+								break;
+							case com.google.android.gms.games.GamesClient.STATUS_CLIENT_RECONNECT_REQUIRED:
+								result = "STATUS_CLIENT_RECONNECT_REQUIRED";
+								break;
+							case com.google.android.gms.games.GamesClient.STATUS_LICENSE_CHECK_FAILED:
+								result = "STATUS_LICENSE_CHECK_FAILED";
+								break;
+							case com.google.android.gms.games.GamesClient.STATUS_INTERNAL_ERROR:
+								result = "STATUS_INTERNAL_ERROR";
+								break;
+							case com.google.android.gms.games.GamesClient.STATUS_NETWORK_ERROR_NO_DATA:
+								result = "STATUS_NETWORK_ERROR_NO_DATA";
+								break;
+							default:
+								result = "Unknown Error (" + Integer.toString(arg0) + ")";
+								break;
+						}
+						debugLog(result);
+						UnitySendMessageSafe("OnPlayerScoreLoadFailed",result);
+					}
+				}
+			}, leaderboardID, LeaderboardVariant.TIME_SPAN_ALL_TIME, LeaderboardVariant.COLLECTION_PUBLIC, 1, bForceReload);
+		}
+	}
 
     public void loadAchievements(boolean bForceReload) {
         mGamesClient.loadAchievements(new OnAchievementsLoadedListener() {
